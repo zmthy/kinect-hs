@@ -1,4 +1,4 @@
-module Codec.Mesh.Ply
+module Codec.Model.Ply
     ( -- * Data Types 
       Header
     , Vertex
@@ -14,12 +14,6 @@ module Codec.Mesh.Ply
     , savePlyFile
     ) where
 
-import Control.Exception (PatternMatchFail(..), throw)
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as ByteString
-import qualified Data.ByteString.Lazy.Char8 as Ascii
-import Data.Bytes (Bytes, toBigEndianBytes, toLittleEndianBytes)
-import Data.Char (digitToInt)
 import Data.List (nub)
 import Data.Maybe (catMaybes)
 import Data.Word (Word, Word8)
@@ -60,7 +54,6 @@ type Colour = (Word8, Word8, Word8)
 data Data = Vertex Vertex
           | Triangle Vertex Vertex Vertex
           | Square Vertex Vertex Vertex Vertex
-          | Face [Int]
           | Edge Vertex Vertex
           deriving (Eq, Show)
 
@@ -112,8 +105,9 @@ edges' i (_ : rest) = edges' i rest
 edges' i [] = i
 
 savePlyFile :: FilePath -> Header -> [Data] -> IO ()
-savePlyFile path header list = writeFile path (showFile header list)
-    -- | otherwise = ByteString.writeFile path (packFile header list)
+savePlyFile path header list = case getFormat header of
+    Ascii -> writeFile path (showFile header list)
+    _ -> ioError (userError "Binary writing not implemented")
 
 showFile :: Header -> [Data] -> String
 showFile header list = showHead header ++ showData list
@@ -184,34 +178,9 @@ getVertices ((Vertex v) : rest) = v : getVertices rest
 getVertices (_ : rest) = getVertices rest
 getVertices [] = []
 
--- packFile :: Header -> [Data] -> ByteString
--- packFile header list =
---     ByteString.concat [packHead header, packData header list]
--- 
--- packHead :: Header -> ByteString
--- packHead header = Ascii.pack (showHead header)
--- 
--- packData :: Header -> [Data] -> ByteString
--- packData header list = ByteString.pack ((case endian header of
---     Little -> concat . map toLittleEndianBytes
---     Big -> concat . map toBigEndianBytes) (packData' list))
--- 
--- packData' :: [Data] -> Bytes
--- packData' (next : rest) = convertData next ++ packData' rest
--- packData' [] = []
--- 
--- convertData :: [a] -> Bytes
--- convertData (next : rest) = convertData' (show next) : convertData rest
--- convertData [] = []
--- 
--- convertData' :: String -> Word8
--- convertData' value = if length value == 1 && digitToInt (head value) > 9
---     then ByteString.head (Ascii.pack value)
---     else read value
+getFormat :: Header -> Format
+getFormat (Header f _) = f
 
-format :: Header -> Format
-format (Header f _) = f
-
-endian :: Header -> Endian
-endian (Header (Binary e) _) = e
-endian _ = throw (PatternMatchFail "ASCII format passed to endian test")
+-- endian :: Header -> Endian
+-- endian (Header (Binary e) _) = e
+-- endian _ = throw (PatternMatchFail "ASCII format passed to endian test")
