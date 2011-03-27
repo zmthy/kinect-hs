@@ -27,7 +27,7 @@ module Device.Kinect
     , pixelCount
     
       -- * Context Functions
-    , setup
+    , initialize
     , shutdown
     , setLogLevel
     , onLog
@@ -174,8 +174,8 @@ pixelCount :: Int
 pixelCount = frameWidth * frameHeight
 
 
-setup :: IO Context
-setup = alloca $ \addr -> do
+initialize :: IO Context
+initialize = alloca $ \addr -> do
     tryC "Freenect failed to initialize" (freenect_init addr nullPtr)
     peek addr
 

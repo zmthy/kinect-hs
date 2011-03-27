@@ -17,6 +17,7 @@ module Codec.Model.Ply
 import Data.List (nub)
 import Data.Maybe (catMaybes)
 import Data.Word (Word, Word8)
+import System.IO.Unsafe (unsafePerformIO)
 
 data Header = Header Format [Info]
             deriving (Eq, Show)
@@ -47,7 +48,7 @@ data Type = Char
           | List Type Type
           deriving (Eq, Show)
 
-type Vertex = (Int, Int, Int)
+type Vertex = (Float, Float, Float)
 
 type Colour = (Word8, Word8, Word8)
 
@@ -59,25 +60,25 @@ data Data = Vertex Vertex
 
 -- | Generates a header from the given data.
 mkHeader :: Format -> [String] -> [Data] -> Header
-mkHeader format comments dat = Header format (map Comment comments ++
-    catMaybes [vertex (vertices dat), face (faces dat), edge (edges dat)])
+mkHeader format comments dat = Header format $
+    map Comment comments ++ catMaybes [vertex dat, face dat, edge dat]
 
-vertex :: Word -> Maybe Info
-vertex 0 = Nothing
-vertex i = Just $ Element "vertex" i
-    [ Property Float "x"
-    , Property Float "y"
-    , Property Float "z" ]
+vertex :: [Data] -> Maybe Info
+vertex dat = case vertices dat of
+    0 -> Nothing
+    i -> Just $ Element "vertex" i
+        [ Property Float "x", Property Float "y", Property Float "z" ]
 
-face :: Word -> Maybe Info
-face 0 = Nothing
-face i = Just $ Element "face" i [ Property (List UChar Int) "vertex_index" ]
+face :: [Data] -> Maybe Info
+face dat = case faces dat of
+    0 -> Nothing
+    i -> Just $ Element "face" i [ Property (List UChar Int) "vertex_index" ]
 
-edge :: Word -> Maybe Info
-edge 0 = Nothing
-edge i = Just $ Element "edge" i
-    [ Property Int "vertex1"
-    , Property Int "vertex2" ]
+edge :: [Data] -> Maybe Info
+edge dat = case edges dat of
+    0 -> Nothing
+    i -> Just $ Element "edge" i
+        [ Property Int "vertex1" , Property Int "vertex2" ]
 
 vertices :: [Data] -> Word
 vertices = vertices' 0

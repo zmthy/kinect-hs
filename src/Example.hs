@@ -4,12 +4,12 @@ import Codec.Image.Bmp (Rgb, saveBmpFile)
 import Control.Concurrent
 import Control.Exception (finally)
 import Data.Bits (shiftR, (.&.))
-import Data.Word (Word16)
+import Data.Word (Word8, Word16)
 import Device.Kinect
 
 main :: IO ()
 main = do
-    context <- setup
+    context <- initialize
     finally (deviceCount context >>= gate context) (shutdown context)
   where
     gate _ 0 = ioError (userError "No devices found")
@@ -19,7 +19,6 @@ main = do
 
 begin :: Context -> Device -> IO ()
 begin context device = do
-    putStrLn "Beginning..."
     setLed device Green
     setTiltAngle device 30
     setDepthFormat device D11Bit
