@@ -1,10 +1,12 @@
+-- | This example takes the first frame of depth data from the Kinect and
+-- converts it into an RGB heatmap BMP image.
 module Main (main) where
 
 import Codec.Image.Bmp (Rgb, saveBmpFile)
 import Control.Concurrent
 import Control.Exception (finally)
 import Data.Bits (shiftR, (.&.))
-import Data.Word (Word8, Word16)
+import Data.Word (Word16)
 import Device.Kinect
 
 main :: IO ()
@@ -20,23 +22,32 @@ main = do
 begin :: Context -> Device -> IO ()
 begin context device = do
     setLed device Green
-    setTiltAngle device 30
+    setTiltAngle device 20
     setDepthFormat device D11Bit
-    done  <- newEmptyMVar
-    end   <- newEmptyMVar
-    reply <- newEmptyMVar
-    onDepth device (depth done)
-    _ <- forkOS (thread context device end reply)
+    list <- newEmptyMVar
+    done <- newEmptyMVar
+    onDepth device (depth list)
+    _ <- forkOS (thread context device list done)
     takeMVar done
-    putMVar end ()
-    takeMVar reply
+    takeMVar list >>= save
 
-depth :: MVar () -> DataCallback Word16
-depth end _ dd _ =
-    finally (saveBmpFile "/Users/Tim/Desktop/depth.bmp" (640, 480) rgb)
-            (putMVar end ())
+depth :: MVar [Word16] -> DataCallback Word16
+depth list _ dd _ = putMVar list (take pixelCount dd)
+
+thread :: Context -> Device -> MVar [Word16] -> MVar () -> IO ()
+thread context device list done =
+    finally (start >> finally loop stop) (putMVar done ())
   where
-    rgb = depthToRgb dd 0
+    start = startDepth device
+    stop  = stopDepth device
+    loop  = processEvents context >> isEmptyMVar list >>= empty
+    empty True  = loop
+    empty False = return ()
+
+save :: [Word16] -> IO ()
+save list = saveBmpFile "depth.bmp" (640, 480) rgb
+  where
+    rgb = depthToRgb list 0
 
 depthToRgb :: [Word16] -> Int -> Rgb
 depthToRgb (d : dd) i
@@ -59,13 +70,3 @@ depthCase pval = case shiftR pval 8 of
 gamma :: Word16 -> Word16
 gamma i = truncate $
     (((fromIntegral i / 2048.0) ^ (3 :: Int) * 9216) :: Double)
-
-thread :: Context -> Device -> MVar () -> MVar () -> IO ()
-thread context device end reply =
-    finally (start >> finally loop stop) (putMVar reply ())
-  where
-    start = startDepth device
-    stop  = stopDepth device
-    loop  = processEvents context >> isEmptyMVar end >>= empty
-    empty True  = loop
-    empty False = return ()

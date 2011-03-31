@@ -55,11 +55,11 @@ import Data.Word (Word32)
 import Foreign.C.String (CString, peekCString)
 import Foreign.C.Types (CDouble, CInt, CUInt)
 import Foreign.Marshal.Alloc (alloca)
+import Foreign.Marshal.Array (peekArray)
 import Foreign.Ptr (FunPtr, Ptr, nullPtr)
 import Foreign.Storable (Storable, alignment, peek, peekElemOff, sizeOf)
 import Helpers.Composition ((.>), (.<))
 import Helpers.IO (tryC, tryIO)
-import System.IO.Unsafe (unsafePerformIO)
 
 -- | The amount of data to output when logging, in ascending order.
 data LogLevel = Fatal
@@ -259,12 +259,9 @@ onData :: Integral a       -- ^
        -> IO ()
 onData function device callback = dataWrap wrapped >>= function device
   where
-    wrapped dev pointer timestamp = do
-        list <- ptrList 0
+    wrapped dev ref timestamp = do
+        list <- peekArray pixelCount ref
         callback dev list (fromIntegral timestamp)
-      where
-        ptrList i = peekElemOff pointer i >>=
-            return . (: unsafePerformIO (ptrList (succ i)))
 
 setVideoFormat :: Device       -- ^ 
                -> VideoFormat  -- ^ 
