@@ -16,7 +16,3 @@ the libfreenect library file is.
 x86_64, which the default Haskell Platform won't support. You'll need to
 install the optional x86_64 version of the Haskell Platform in order to compile
 the bindings, or reinstall libfreenect for i386.*
-
-*Also note that there is an incompatibility between XCode 4 and GHC 7.0.2 which
-will prevent the bindings from compiling. Stick with XCode 3 until this issue
-is resolved.*
